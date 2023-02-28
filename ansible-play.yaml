@@ -1,0 +1,40 @@
+ - name: "Linode automation"
+   hosts: localhost
+   connection: local
+   gather_facts: false
+   vars:
+     linode_api_key: "6fa48c64a2888c532269afe780a5ead29406cc1bc67423d743916bcd4761e968"
+     linode_region: "ap-west"
+     linode_plan: "g6-nanode-1"
+     linode_image: "linode/ubuntu22.04"
+     slack_webhook_url: "https://hooks.slack.com/services/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"
+
+   tasks:
+     - name: "Create a new Linode instance"
+       linode.cloud.instance:
+         state: present
+         api_token: "{{ linode_api_key }}"
+         region: "{{ linode_region }}"
+         label: "automation-vm-lokii"
+         group: "my-linode-group"
+         type: "{{ linode_plan }}"
+         image: "{{ linode_image }}"
+       register: linode_instance_result
+     - name: "Get IP address of the new Linode instance"
+       set_fact:
+         linode_ip: "{{ linode_instance_result.instance.ipv4[0] }}"
+     - name: "Get password of the new Linode instance"
+       set_fact:
+         linode_password: "{{ linode_instance_result.instance.root_pass }}"
+     - name: "Get Linode ID"
+       set_fact:
+         linode_id: "{{ linode_instance_result.instance.id }}"
+     - name: "Send details of the new Linode instance to Slack"
+       uri:
+         url: "{{ slack_webhook_url }}"
+         method: POST
+         body_format: json
+         body:
+           text: "A new Linode instance has been created.\nIP address: {{ linode_ip }}\nPassword: {{ linode_password }}\nLabel: my-new-vm and Linode ID: {{ linode_id }}"
+         status_code: 200
+       register: slack_result
